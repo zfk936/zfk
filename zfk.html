@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>创意钢琴键盘 - 张峰恺原创</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#165DFF',
+                        secondary: '#FF7D00',
+                        dark: '#1E293B',
+                        light: '#F8FAFC',
+                        accent: '#7C3AED'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .key-shadow {
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06), inset 0 -4px 0 0 rgba(0, 0, 0, 0.1);
+            }
+            .key-shadow-active {
+                box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1), inset 0 -2px 0 0 rgba(0, 0, 0, 0.1);
+            }
+            .black-key {
+                position: absolute;
+                width: 14%;
+                height: 60%;
+                background-color: #333;
+                z-index: 10;
+                margin-left: -7%;
+                border-radius: 0 0 6px 6px;
+            }
+            .floating-note {
+                position: absolute;
+                pointer-events: none;
+                font-size: 1.5rem;
+                font-weight: bold;
+                opacity: 0;
+                transition: all 0.8s ease-out;
+            }
+            .pulse {
+                animation: pulse 2s infinite;
+            }
+            @keyframes pulse {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+                100% { transform: scale(1); }
+            }
+            .recording-indicator {
+                animation: blink 1.5s infinite;
+            }
+            @keyframes blink {
+                0% { opacity: 1; }
+                50% { opacity: 0.4; }
+                100% { opacity: 1; }
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-purple-50 to-blue-100 min-h-screen font-inter flex flex-col p-4 md:p-6">
+    <div class="w-full max-w-4xl mx-auto flex-1 flex flex-col">
+        <header class="text-center mb-4 md:mb-6 pt-2 md:pt-0">
+            <h1 class="text-[clamp(1.5rem,6vw,2.5rem)] font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent mb-1 md:mb-2">创意钢琴键盘</h1>
+            <p class="text-gray-600 text-sm md:text-lg">张峰恺原创 | 不止于弹奏的音乐体验</p>
+        </header>
+        
+        <main class="bg-white rounded-2xl shadow-xl p-4 md:p-6 flex-1 flex flex-col">
+            <!-- 控制面板 -->
+            <div class="mb-4 flex flex-wrap gap-3 items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <button id="record-btn" class="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg transition-all">
+                        <i class="fa fa-circle-o text-sm"></i>
+                        <span class="text-sm md:text-base">录音</span>
+                    </button>
+                    <button id="play-btn" class="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white px-3 py-2 rounded-lg transition-all opacity-50 cursor-not-allowed">
+                        <i class="fa fa-play"></i>
+                        <span class="text-sm md:text-base">播放</span>
+                    </button>
+                </div>
+                
+                <div class="flex items-center gap-2">
+                    <label for="instrument" class="text-sm md:text-base text-gray-700">乐器:</label>
+                    <select id="instrument" class="bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-primary/50">
+                        <option value="sine">钢琴</option>
+                        <option value="square">电子琴</option>
+                        <option value="triangle">小提琴</option>
+                        <option value="sawtooth">萨克斯</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- 键盘区域 -->
+            <div class="keyboard-container relative w-full flex-1 max-w-3xl mx-auto mb-4" style="min-height: 200px;">
+                <div id="keyboard" class="relative w-full h-full flex rounded-lg overflow-hidden shadow-lg">
+                    <!-- 琴键将通过JavaScript动态生成 -->
+                </div>
+                
+                <div id="note-display" class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 md:mb-4 bg-primary text-white px-4 py-2 md:px-6 md:py-3 rounded-lg shadow-lg text-sm md:text-xl font-semibold transition-all duration-300 opacity-0">
+                    <span id="note-name">C</span>
+                </div>
+                
+                <!-- 音符动画容器 -->
+                <div id="notes-container" class="absolute inset-0 pointer-events-none overflow-hidden"></div>
+            </div>
+            
+            <!-- 录音提示和示例旋律 -->
+            <div class="mt-2 md:mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                    <p class="text-sm md:text-base text-gray-700 flex items-center gap-2">
+                        <i class="fa fa-lightbulb-o text-secondary"></i>
+                        <span>录音后可以播放您的创作</span>
+                    </p>
+                </div>
+                
+                <div class="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                    <div class="flex items-center justify-between">
+                        <p class="text-sm md:text-base text-gray-700 flex items-center gap-2">
+                            <i class="fa fa-music text-accent"></i>
+                            <span>示例旋律</span>
+                        </p>
+                        <div class="flex gap-2">
+                            <button class="demo-melody bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded text-xs md:text-sm transition-all" data-melody="simple">简单</button>
+                            <button class="demo-melody bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded text-xs md:text-sm transition-all" data-melody="happy">欢快</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <footer class="mt-4 md:mt-6 text-center text-gray-500 text-xs md:text-sm">
+            <p>🎹 创意钢琴 | 让音乐创作更有趣</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // 定义音符和对应的音频频率
+            const notes = [
+                { name: 'C', frequency: 261.63, keyCode: 65 }, // A键
+                { name: 'D', frequency: 293.66, keyCode: 83 }, // S键
+                { name: 'E', frequency: 329.63, keyCode: 68 }, // D键
+                { name: 'F', frequency: 349.23, keyCode: 70 }, // F键
+                { name: 'G', frequency: 392.00, keyCode: 71 }, // G键
+                { name: 'A', frequency: 440.00, keyCode: 72 }, // H键
+                { name: 'B', frequency: 493.88, keyCode: 74 }, // J键
+                { name: 'C1', frequency: 523.25, keyCode: 75 }  // K键
+            ];
+            
+            // 示例旋律
+            const melodies = {
+                simple: [
+                    {note: 'C', time: 0},
+                    {note: 'D', time: 500},
+                    {note: 'E', time: 1000},
+                    {note: 'C', time: 1500},
+                    {note: 'C', time: 2000},
+                    {note: 'D', time: 2500},
+                    {note: 'E', time: 3000},
+                    {note: 'C', time: 3500}
+                ],
+                happy: [
+                    {note: 'C1', time: 0},
+                    {note: 'B', time: 300},
+                    {note: 'A', time: 600},
+                    {note: 'G', time: 900},
+                    {note: 'G', time: 1200},
+                    {note: 'A', time: 1500},
+                    {note: 'B', time: 1800},
+                    {note: 'C1', time: 2100}
+                ]
+            };
+            
+            // 获取DOM元素
+            const keyboard = document.getElementById('keyboard');
+            const noteDisplay = document.getElementById('note-display');
+            const noteName = document.getElementById('note-name');
+            const notesContainer = document.getElementById('notes-container');
+            const recordBtn = document.getElementById('record-btn');
+            const playBtn = document.getElementById('play-btn');
+            const instrumentSelect = document.getElementById('instrument');
+            const demoButtons = document.querySelectorAll('.demo-melody');
+            
+            // 录音相关变量
+            let isRecording = false;
+            let recordedNotes = [];
+            let recordingStartTime = 0;
+            
+            // 音频上下文
+            let audioContext;
+            let currentOscillators = [];
+            
+            // 创建琴键
+            notes.forEach((note, index) => {
+                // 创建白色琴键
+                const key = document.createElement('div');
+                key.className = 'white-key flex-1 relative bg-white border-r border-gray-300 cursor-pointer transition-all duration-150 key-shadow flex flex-col items-center justify-end pb-2 md:pb-4';
+                key.dataset.note = note.name;
+                key.dataset.frequency = note.frequency;
+                key.dataset.keycode = note.keyCode;
+                
+                // 响应式琴键文字
+                key.innerHTML = `
+                    <span class="text-xs md:text-lg font-semibold text-gray-800">${note.name}</span>
+                    <span class="text-[8px] md:text-xs text-gray-500 mt-0.5">${String.fromCharCode(note.keyCode)}</span>
+                `;
+                
+                // 添加事件监听
+                key.addEventListener('mousedown', () => playNote(key));
+                key.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    playNote(key);
+                });
+                
+                key.addEventListener('mouseup', () => stopNote(key));
+                key.addEventListener('touchend', () => stopNote(key));
+                key.addEventListener('mouseleave', () => stopNote(key));
+                key.addEventListener('touchcancel', () => stopNote(key));
+                
+                keyboard.appendChild(key);
+            });
+            
+            // 播放音符
+            function playNote(key) {
+                // 初始化音频上下文
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                
+                // 获取音符信息
+                const note = key.dataset.note;
+                const frequency = parseFloat(key.dataset.frequency);
+                
+                // 显示当前音符
+                noteName.textContent = note;
+                noteDisplay.style.opacity = '1';
+                noteDisplay.style.transform = 'translate(-50%, -5px)';
+                
+                // 改变琴键样式
+                key.classList.remove('key-shadow');
+                key.classList.add('key-shadow-active', 'bg-gray-100');
+                
+                // 创建振荡器播放音符
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                // 根据选择的乐器设置波形
+                oscillator.type = instrumentSelect.value;
+                oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+                
+                // 音量渐变，使声音更自然
+                gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.05);
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.start();
+                
+                // 存储当前的音频节点
+                key.currentOscillator = oscillator;
+                key.currentGainNode = gainNode;
+                currentOscillators.push({key, oscillator, gainNode});
+                
+                // 创建音符动画
+                createFloatingNote(note, key);
+                
+                // 如果正在录音，记录音符
+                if (isRecording) {
+                    recordedNotes.push({
+                        note,
+                        frequency,
+                        time: Date.now() - recordingStartTime
+                    });
+                }
+            }
+            
+            // 停止音符
+            function stopNote(key) {
+                if (key.currentOscillator) {
+                    // 音量淡出
+                    key.currentGainNode.gain.linearRampToValueAtTime(
+                        0, 
+                        audioContext.currentTime + 0.1
+                    );
+                    
+                    // 停止振荡器
+                    setTimeout(() => {
+                        key.currentOscillator.stop();
+                        key.currentOscillator = null;
+                        key.currentGainNode = null;
+                        
+                        // 从当前振荡器列表中移除
+                        currentOscillators = currentOscillators.filter(item => item.key !== key);
+                    }, 100);
+                }
+                
+                // 恢复琴键样式
+                key.classList.remove('key-shadow-active', 'bg-gray-100');
+                key.classList.add('key-shadow');
+                
+                // 隐藏音符显示（延迟一点时间）
+                setTimeout(() => {
+                    if (currentOscillators.length === 0) {
+                        noteDisplay.style.opacity = '0';
+                        noteDisplay.style.transform = 'translate(-50%, 0)';
+                    }
+                }, 300);
+            }
+            
+            // 创建漂浮音符动画
+            function createFloatingNote(note, key) {
+                const floatingNote = document.createElement('div');
+                floatingNote.className = 'floating-note';
+                
+                // 随机颜色
+                const colors = ['#165DFF', '#FF7D00', '#7C3AED', '#10B981', '#EF4444'];
+                const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                
+                floatingNote.style.color = randomColor;
+                floatingNote.textContent = note;
+                
+                // 定位在琴键上方
+                const rect = key.getBoundingClientRect();
+                const containerRect = notesContainer.getBoundingClientRect();
+                
+                floatingNote.style.left = `${rect.left + rect.width/2 - containerRect.left}px`;
+                floatingNote.style.bottom = `${rect.height - containerRect.top}px`;
+                
+                notesContainer.appendChild(floatingNote);
+                
+                // 触发动画
+                setTimeout(() => {
+                    floatingNote.style.transform = `translate(-50%, -150px) rotate(15deg)`;
+                    floatingNote.style.opacity = '0.8';
+                }, 10);
+                
+                // 动画结束后移除元素
+                setTimeout(() => {
+                    floatingNote.remove();
+                }, 800);
+            }
+            
+            // 录音按钮事件
+            recordBtn.addEventListener('click', () => {
+                isRecording = !isRecording;
+                
+                if (isRecording) {
+                    // 开始录音
+                    recordedNotes = [];
+                    recordingStartTime = Date.now();
+                    recordBtn.innerHTML = `
+                        <i class="fa fa-circle text-sm recording-indicator"></i>
+                        <span class="text-sm md:text-base">正在录音</span>
+                    `;
+                    recordBtn.classList.remove('bg-red-500', 'hover:bg-red-600');
+                    recordBtn.classList.add('bg-red-600', 'hover:bg-red-700');
+                    playBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                } else {
+                    // 停止录音
+                    recordBtn.innerHTML = `
+                        <i class="fa fa-circle-o text-sm"></i>
+                        <span class="text-sm md:text-base">录音</span>
+                    `;
+                    recordBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+                    recordBtn.classList.add('bg-red-500', 'hover:bg-red-600');
+                    
+                    // 如果有录音内容，启用播放按钮
+                    if (recordedNotes.length > 0) {
+                        playBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    }
+                }
+            });
+            
+            // 播放按钮事件
+            playBtn.addEventListener('click', () => {
+                if (recordedNotes.length === 0) return;
+                
+                // 禁用按钮防止重复播放
+                playBtn.disabled = true;
+                playBtn.classList.add('opacity-70');
+                
+                // 播放录音
+                recordedNotes.forEach(note => {
+                    setTimeout(() => {
+                        const key = Array.from(keyboard.children).find(
+                            k => k.dataset.note === note.note
+                        );
+                        if (key) {
+                            playNote(key);
+                            setTimeout(() => stopNote(key), 300);
+                        }
+                    }, note.time);
+                });
+                
+                // 计算总播放时间，然后重新启用按钮
+                const totalTime = recordedNotes[recordedNotes.length - 1].time + 500;
+                setTimeout(() => {
+                    playBtn.disabled = false;
+                    playBtn.classList.remove('opacity-70');
+                }, totalTime);
+            });
+            
+            // 示例旋律按钮
+            demoButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const melodyName = btn.dataset.melody;
+                    const melody = melodies[melodyName];
+                    
+                    // 播放示例旋律
+                    melody.forEach(item => {
+                        setTimeout(() => {
+                            const key = Array.from(keyboard.children).find(
+                                k => k.dataset.note === item.note
+                            );
+                            if (key) {
+                                playNote(key);
+                                setTimeout(() => stopNote(key), 250);
+                            }
+                        }, item.time);
+                    });
+                });
+            });
+            
+            // 键盘快捷键支持
+            document.addEventListener('keydown', (e) => {
+                if (e.repeat) return; // 防止按住键重复触发
+                
+                const key = Array.from(keyboard.children).find(
+                    k => parseInt(k.dataset.keycode) === e.keyCode
+                );
+                
+                if (key) {
+                    playNote(key);
+                }
+            });
+            
+            document.addEventListener('keyup', (e) => {
+                const key = Array.from(keyboard.children).find(
+                    k => parseInt(k.dataset.keycode) === e.keyCode
+                );
+                
+                if (key) {
+                    stopNote(key);
+                }
+            });
+            
+            // 初始化音频上下文
+            function initAudioContext() {
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    // 播放一个极短的静音来初始化音频上下文
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    gainNode.gain.value = 0;
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    oscillator.start();
+                    oscillator.stop(audioContext.currentTime + 0.01);
+                }
+            }
+
+            // 监听用户首次交互，初始化音频上下文
+            document.addEventListener('click', initAudioContext, { once: true });
+            document.addEventListener('touchstart', initAudioContext, { once: true });
+        });
+    </script>
+</body>
+</html>
+    
